@@ -1,0 +1,35 @@
+# Publishes the website/ folder to GitHub Pages every time main is pushed.
+# GitHub Pages can only publish the repo root or a docs/ folder on its own,
+# so this tells it to use website/ instead.
+# The site is static there: the Dashboard tab shows the simulated demo
+# (website/data/dashboard-sim.json), and real logs never leave this computer.
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # also allows a manual "Run workflow" button
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,14 @@
+# Secrets: the Anthropic API key lives here, never commit it
+.env
+
+# Real personal training data stays local; templates are fine to share
+data/*.csv
+data/*.numbers
+!data/*_template.csv
+
+# Python / tooling clutter
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+.DS_Store

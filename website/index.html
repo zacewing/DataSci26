@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gym Progress Tracker</title>
+  <meta name="description" content="An AI-powered gym progress tracker: a Data Science & Analytics project at FAU.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="index.html">🏋️ Gym Progress Tracker <span class="muted">· Zac</span></a>
+      <nav>
+        <a href="index.html" aria-current="page">Project</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="log.html">Log</a>
+        <a href="about.html">About Me</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <p class="eyebrow">Data Science &amp; Analytics · FAU</p>
+      <h1>Turning lifting logs into answers</h1>
+      <p class="lede">
+        A tool that tracks my training and recovery, estimates my strength over time,
+        flags when I've stalled, and uses AI to explain what's working in plain English.
+      </p>
+      <a class="button" href="dashboard.html">Open the dashboard</a>
+      <a class="button secondary" href="#how">How it works</a>
+    </div>
+
+    <section>
+      <h2>The problem</h2>
+      <p>
+        Lifters log numbers but rarely learn from them. It's hard to tell whether a stall
+        is real or just a bad day, what separates good sessions from bad ones, or when a
+        new personal record is realistic.
+      </p>
+    </section>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>1 · Log</h3>
+          <p>Every set (exercise, weight, reps, effort) goes into a spreadsheet, plus daily sleep, soreness, energy and bodyweight.</p>
+        </div>
+        <div class="card">
+          <h3>2 · Estimate</h3>
+          <p>Each set is converted to an estimated one-rep max, so a 5-rep set and a heavy single can be compared on one scale.</p>
+        </div>
+        <div class="card">
+          <h3>3 · Analyze</h3>
+          <p>Trends, plateau detection and prediction models show where strength is heading and what's driving it.</p>
+        </div>
+        <div class="card">
+          <h3>4 · Explain</h3>
+          <p>An AI model reads the weekly numbers and writes a short summary with suggestions, such as when to push or deload.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Estimating strength</h2>
+      <p>Estimated one-rep max (e1RM) uses the Epley formula:</p>
+      <p class="formula">e1RM = weight × (1 + reps ÷ 30)</p>
+      <p>Two rules keep the estimate honest:</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Singles count as-is</h3>
+          <p>Plain Epley would turn a 315 lb single into ~325. A single already <em>is</em> a one-rep max, so its e1RM is just the weight.</p>
+        </div>
+        <div class="card">
+          <h3>Fatigued sets are left out</h3>
+          <p>A heavy single done after back-off sets makes me look weaker than I am. Those sets still count toward volume, but not toward the strength trend.</p>
+        </div>
+        <div class="card">
+          <h3>Trend, not noise</h3>
+          <p>One bad night of sleep can sink a session. A rolling average over recent sessions shows the real direction.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Build progress</h2>
+      <ol class="steps">
+        <li><span class="badge done">Done</span><div><strong>Load and clean data</strong><span class="desc">Reads the log straight from Numbers, fixes typos and inconsistent names, computes e1RM, weekly volume and rolling averages.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>e1RM charts</strong><span class="desc">Interactive trend chart per lift, plus weekly volume.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>Plateau detection</strong><span class="desc">Fits a trend line through the last 8 weeks and flags a lift after 2 flat weeks. Tested on simulated data with planted plateaus: it agreed with the truth about 75% of the time, and reacts a few weeks late.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>Prediction model</strong><span class="desc">Predicts next-session e1RM from recent form and recovery. On simulated data, linear regression's typical miss was 42% smaller than guessing "same as last time." Needs about 30 real sessions before it runs on my logs.</span></div></li>
+        <li><span class="badge wip">Started</span><div><strong>What drives good sessions</strong><span class="desc">How sleep, soreness and time of day relate to performance.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>AI weekly summary</strong><span class="desc">Claude turns the week's numbers into a plain-English check-in, with a rule-based version when no API key is set. Suggestions, not medical advice.</span></div></li>
+        <li><span class="badge wip">Started</span><div><strong>Dashboard</strong><span class="desc">Live view of all of the above, with a simulated-data demo mode for features that need months of history.</span></div></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Built with</h2>
+      <ul class="chips">
+        <li>Python</li><li>pandas</li><li>NumPy</li><li>scikit-learn</li>
+        <li>Vega-Lite</li><li>GitHub Pages</li><li>Claude API</li><li>Apple Numbers</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Gym Progress Tracker · a class project by Zac Ewing · FAU Data Science &amp; Analytics</div>
+  </footer>
+</body>
+</html>

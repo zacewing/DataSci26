@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log a Workout</title>
+  <meta name="description" content="Log sets and daily check-ins for the Gym Progress Tracker.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="index.html">🏋️ Gym Progress Tracker <span class="muted">· Zac</span></a>
+      <nav>
+        <a href="index.html">Project</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="log.html" aria-current="page">Log</a>
+        <a href="about.html">About Me</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero compact">
+      <p class="eyebrow">Log</p>
+      <h1>Log today</h1>
+      <p class="lede">Entries are saved to your CSV logs and show up in the dashboard within a few seconds.</p>
+      <p id="offline" class="status error" hidden>
+        Can't reach the logging server, so entries won't save. Start it with
+        <code>.venv/bin/python server.py</code> and open <a href="http://localhost:8000/log.html">localhost:8000/log.html</a>.
+      </p>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-set" aria-selected="true" aria-controls="panel-set">Sets</button>
+      <button role="tab" id="tab-day" aria-selected="false" aria-controls="panel-day">Daily check-in</button>
+    </div>
+
+    <!-- ---------- Sets ---------- -->
+    <section id="panel-set" role="tabpanel" aria-labelledby="tab-set" class="panel">
+      <form id="set-form" class="card form" novalidate>
+        <div class="fields">
+          <label>Date<input type="date" name="date" required></label>
+          <label>Exercise
+            <input name="exercise" list="exercise-list" placeholder="e.g. squat" required autocomplete="off">
+            <datalist id="exercise-list"></datalist>
+          </label>
+          <label>Weight (lbs)<input type="number" name="weight_lbs" inputmode="decimal" min="1" step="any" required></label>
+          <label>Reps<input type="number" name="reps" inputmode="numeric" min="1" step="1" required></label>
+          <label>RPE <span class="muted">(optional)</span><input type="number" name="rpe" inputmode="decimal" min="1" max="10" step="0.5"></label>
+        </div>
+        <label class="check">
+          <input type="checkbox" name="fatigued">
+          <span><strong>Fatigued set</strong> <span class="muted">· done tired, e.g. a single after back-offs. Counts toward volume, not e1RM.</span></span>
+        </label>
+        <div class="actions">
+          <button type="submit" class="button">Save set</button>
+          <span class="status" id="set-status" role="status"></span>
+        </div>
+        <p class="note">After saving, the form keeps your numbers so the next identical set is one tap.</p>
+      </form>
+
+      <div class="recent">
+        <div class="recent-head">
+          <h2>Recent sets</h2>
+          <button type="button" class="button secondary small" id="undo">Undo last set</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Exercise</th><th class="num">Weight</th><th class="num">Reps</th><th class="num">RPE</th><th>Type</th></tr></thead>
+            <tbody id="recent-sets"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Daily check-in ---------- -->
+    <section id="panel-day" role="tabpanel" aria-labelledby="tab-day" class="panel" hidden>
+      <form id="day-form" class="card form" novalidate>
+        <div class="fields">
+          <label>Date<input type="date" name="date" required></label>
+          <label>Sleep (hours)<input type="number" name="sleep_hours" inputmode="decimal" min="0" max="24" step="0.25"></label>
+          <label>Bodyweight (lbs)<input type="number" name="bodyweight_lbs" inputmode="decimal" min="50" max="600" step="0.1"></label>
+          <label>Soreness (1–10)<input type="number" name="soreness" inputmode="numeric" min="1" max="10" step="1"></label>
+          <label>Energy (1–10)<input type="number" name="energy" inputmode="numeric" min="1" max="10" step="1"></label>
+          <label>Protein (g)<input type="number" name="protein_g" inputmode="numeric" min="0" step="1"></label>
+          <label>Trained in the
+            <select name="train_time">
+              <option value="">— didn't train / skip —</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="button">Save check-in</button>
+          <span class="status" id="day-status" role="status"></span>
+        </div>
+        <p class="note">Every field but the date is optional. Saving the same date again updates just the fields you fill in.</p>
+      </form>
+
+      <div class="recent">
+        <h2>Last 7 check-ins</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th class="num">Sleep</th><th class="num">Bodyweight</th><th class="num">Soreness</th><th class="num">Energy</th><th class="num">Protein</th><th>Time</th></tr></thead>
+            <tbody id="recent-days"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">Gym Progress Tracker · a class project by Zac Ewing · FAU Data Science &amp; Analytics</div>
+  </footer>
+
+  <script>
+    // ---------- Helpers ----------
+    // Today's date in the local timezone, formatted like 2026-10-21.
+    function today() {
+      const d = new Date();
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    function showStatus(el, text, ok) {
+      el.textContent = text;
+      el.className = "status " + (ok ? "ok" : "error");
+    }
+
+    // Send an entry to server.py and return its reply (or throw its error).
+    async function post(url, data) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const reply = await res.json();
+      if (!res.ok) throw new Error(reply.error || "Couldn't save.");
+      return reply;
+    }
+
+    function cell(text, cls) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (cls) td.className = cls;
+      return td;
+    }
+
+    function fillTable(tbody, rows, columns, emptyText) {
+      tbody.replaceChildren();
+      if (!rows.length) {
+        const tr = document.createElement("tr");
+        const td = cell(emptyText, "muted");
+        td.colSpan = columns.length;
+        tr.append(td);
+        tbody.append(tr);
+        return;
+      }
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        for (const [key, cls] of columns) tr.append(cell(row[key] || "–", cls));
+        tbody.append(tr);
+      }
+    }
+
+    // ---------- Recent entries ----------
+    async function refresh() {
+      try {
+        const res = await fetch("/api/recent");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.getElementById("offline").hidden = true;
+
+        fillTable(document.getElementById("recent-sets"), data.workouts,
+          [["date"], ["exercise"], ["weight_lbs", "num"], ["reps", "num"], ["rpe", "num"], ["set_type"]],
+          "No sets yet.");
+        fillTable(document.getElementById("recent-days"), data.daily,
+          [["date"], ["sleep_hours", "num"], ["bodyweight_lbs", "num"], ["soreness", "num"],
+           ["energy", "num"], ["protein_g", "num"], ["train_time"]],
+          "No check-ins yet.");
+
+        // Suggest exercises you've logged before, so names stay consistent.
+        const list = document.getElementById("exercise-list");
+        list.replaceChildren(...data.exercises.map(name => new Option(name)));
+      } catch {
+        document.getElementById("offline").hidden = false;
+      }
+    }
+
+    // ---------- Tabs ----------
+    const tabs = [["tab-set", "panel-set"], ["tab-day", "panel-day"]];
+    for (const [tabId] of tabs) {
+      document.getElementById(tabId).addEventListener("click", () => {
+        for (const [t, p] of tabs) {
+          const on = t === tabId;
+          document.getElementById(t).setAttribute("aria-selected", on);
+          document.getElementById(p).hidden = !on;
+        }
+      });
+    }
+
+    // ---------- Set form ----------
+    const setForm = document.getElementById("set-form");
+    const setStatus = document.getElementById("set-status");
+    setForm.date.value = today();
+
+    setForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!setForm.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(setForm));
+      data.fatigued = setForm.fatigued.checked;
+      try {
+        const { saved } = await post("/api/workouts", data);
+        showStatus(setStatus, `Saved: ${saved.exercise} ${saved.weight_lbs} × ${saved.reps}`, true);
+        setForm.fatigued.checked = false;  // fatigued is rarely two sets in a row
+        refresh();
+      } catch (err) {
+        showStatus(setStatus, err.message, false);
+      }
+    });
+
+    document.getElementById("undo").addEventListener("click", async () => {
+      try {
+        const { removed } = await post("/api/workouts/undo", {});
+        showStatus(setStatus, `Removed: ${removed.exercise} ${removed.weight_lbs} × ${removed.reps} (${removed.date})`, true);
+        refresh();
+      } catch (err) {
+        showStatus(setStatus, err.message, false);
+      }
+    });
+
+    // ---------- Daily form ----------
+    const dayForm = document.getElementById("day-form");
+    const dayStatus = document.getElementById("day-status");
+    dayForm.date.value = today();
+
+    dayForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!dayForm.reportValidity()) return;
+      try {
+        const { saved } = await post("/api/daily", Object.fromEntries(new FormData(dayForm)));
+        showStatus(dayStatus, `Saved check-in for ${saved.date}`, true);
+        refresh();
+      } catch (err) {
+        showStatus(dayStatus, err.message, false);
+      }
+    });
+
+    refresh();
+  </script>
+</body>
+</html>
