@@ -13,6 +13,8 @@
   --done-soft: #e3f3e3;
   --todo-soft: #f0efec;
   --placeholder: #fff3c4;
+  --warn: #9a5b00;
+  --warn-soft: #fdf1dc;
   --radius: 14px;
   /* Chart colors (validated categorical palette, light-mode steps) */
   --series-1: #2a78d6;
@@ -36,6 +38,8 @@
     --done-soft: #142614;
     --todo-soft: #262624;
     --placeholder: #4a3d10;
+    --warn: #f0b44c;
+    --warn-soft: #3a2a10;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -168,7 +172,7 @@ footer { padding: 32px 0 48px; border-top: 1px solid var(--border); color: var(-
 .panel { border-top: none; padding-top: 16px; }
 
 .form { display: grid; gap: 18px; }
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; align-items: end; }
 .form label { display: grid; gap: 6px; font-size: 0.9rem; font-weight: 600; color: var(--text-2); }
 .form input, .form select {
   font: inherit; font-weight: 400; color: var(--text);
@@ -186,7 +190,28 @@ button.button.secondary { border: 1px solid var(--border); }
 .status { font-size: 0.95rem; }
 .status.ok { color: var(--done); }
 .status.error { color: #d03b3b; }
+.status.warn { color: var(--warn); }
+.recommended {
+  font-size: 0.75rem; font-weight: 600; color: var(--warn); background: var(--warn-soft);
+  border-radius: 999px; padding: 1px 8px; margin-left: 4px;
+}
 p.status.error { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+
+.reminder { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+
+.timer { margin-top: 16px; display: grid; gap: 12px; }
+.timer-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.timer-head h3 { margin: 0; }
+.timer-head .muted { font-size: 0.85rem; }
+.timer-display {
+  font-size: 3rem; font-weight: 700; line-height: 1.1; text-align: center;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.timer-display.running { color: var(--text); }
+.timer-display.over { color: var(--done); }
+.timer-bar { height: 6px; border-radius: 999px; background: var(--todo-soft); overflow: hidden; }
+#timer-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.25s linear; }
+.timer-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 .recent { margin-top: 28px; }
 .recent-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

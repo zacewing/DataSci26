@@ -38,6 +38,11 @@
     </div>
 
     <div id="log-app">
+    <div id="checkin-reminder" class="status-note reminder" hidden>
+      <span>🌙 <strong>No check-in for today yet.</strong> Bodyweight, sleep and energy take 20 seconds.</span>
+      <button type="button" class="button small" id="checkin-go">Check in now</button>
+    </div>
+
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-set" aria-selected="true" aria-controls="panel-set">Sets</button>
       <button role="tab" id="tab-day" aria-selected="false" aria-controls="panel-day">Daily check-in</button>
@@ -67,6 +72,28 @@
         <p class="note">After saving, the form keeps your numbers so the next identical set is one tap.</p>
       </form>
 
+      <div class="card timer">
+        <div class="timer-head">
+          <h3>Rest timer</h3>
+          <span class="muted">Starts when you save a set</span>
+        </div>
+        <div class="timer-display" id="timer-display" role="timer">0:00</div>
+        <div class="timer-bar"><div id="timer-fill"></div></div>
+        <div class="timer-controls">
+          <div class="segmented" id="rest-presets" role="radiogroup" aria-label="Rest length">
+            <button type="button" role="radio" data-secs="60">1:00</button>
+            <button type="button" role="radio" data-secs="90">1:30</button>
+            <button type="button" role="radio" data-secs="120">2:00</button>
+            <button type="button" role="radio" data-secs="180">3:00</button>
+            <button type="button" role="radio" data-secs="300">5:00</button>
+          </div>
+          <div class="actions">
+            <button type="button" class="button small" id="timer-toggle">Start</button>
+            <button type="button" class="button secondary small" id="timer-add">+30s</button>
+          </div>
+        </div>
+      </div>
+
       <div class="recent">
         <div class="recent-head">
           <h2>Recent sets</h2>
@@ -87,7 +114,7 @@
         <div class="fields">
           <label>Date<input type="date" name="date" required></label>
           <label>Sleep (hours)<input type="number" name="sleep_hours" inputmode="decimal" min="0" max="24" step="0.25"></label>
-          <label>Bodyweight (lbs)<input type="number" name="bodyweight_lbs" inputmode="decimal" min="50" max="600" step="0.1"></label>
+          <label><span>Bodyweight (lbs) <span class="recommended">recommended</span></span><input type="number" name="bodyweight_lbs" inputmode="decimal" min="50" max="600" step="0.1"></label>
           <label>Soreness (1–10)<input type="number" name="soreness" inputmode="numeric" min="1" max="10" step="1"></label>
           <label>Energy (1–10)<input type="number" name="energy" inputmode="numeric" min="1" max="10" step="1"></label>
           <label>Protein (g)<input type="number" name="protein_g" inputmode="numeric" min="0" step="1"></label>
@@ -104,7 +131,7 @@
           <button type="submit" class="button">Save check-in</button>
           <span class="status" id="day-status" role="status"></span>
         </div>
-        <p class="note">Every field but the date is optional. Saving the same date again updates just the fields you fill in.</p>
+        <p class="note">Fill in the date and at least one other field. Bodyweight is recommended whenever you can weigh in; time of day and the rest are optional. Saving the same date again updates just the fields you fill in.</p>
       </form>
 
       <div class="recent">
@@ -204,6 +231,11 @@
         // Suggest exercises you've logged before, so names stay consistent.
         const list = document.getElementById("exercise-list");
         list.replaceChildren(...data.exercises.map(name => new Option(name)));
+
+        // Look for today among the recent check-ins (not just the newest row, which
+        // could be a future date typed by mistake).
+        const checkedIn = data.daily.some(row => row.date === today());
+        document.getElementById("checkin-reminder").hidden = checkedIn;
       } catch {
         if (isHosted) showHostedNote();
         else document.getElementById("offline").hidden = false;
@@ -212,15 +244,17 @@
 
     // ---------- Tabs ----------
     const tabs = [["tab-set", "panel-set"], ["tab-day", "panel-day"]];
-    for (const [tabId] of tabs) {
-      document.getElementById(tabId).addEventListener("click", () => {
-        for (const [t, p] of tabs) {
-          const on = t === tabId;
-          document.getElementById(t).setAttribute("aria-selected", on);
-          document.getElementById(p).hidden = !on;
-        }
-      });
+    function selectTab(tabId) {
+      for (const [t, p] of tabs) {
+        const on = t === tabId;
+        document.getElementById(t).setAttribute("aria-selected", on);
+        document.getElementById(p).hidden = !on;
+      }
     }
+    for (const [tabId] of tabs) {
+      document.getElementById(tabId).addEventListener("click", () => selectTab(tabId));
+    }
+    document.getElementById("checkin-go").addEventListener("click", () => selectTab("tab-day"));
 
     // ---------- Set form ----------
     const setForm = document.getElementById("set-form");
@@ -236,6 +270,7 @@
         const { saved } = await post("/api/workouts", data);
         showStatus(setStatus, `Saved: ${saved.exercise} ${saved.weight_lbs} × ${saved.reps}`, true);
         setForm.fatigued.checked = false;  // fatigued is rarely two sets in a row
+        startTimer();
         refresh();
       } catch (err) {
         showStatus(setStatus, err.message, false);
@@ -252,16 +287,147 @@
       }
     });
 
+    // ---------- Rest timer ----------
+    // The timer stores the moment rest ends, not a countdown number. Browsers slow
+    // down timers in background tabs, so counting ticks would drift; comparing to
+    // the clock stays right even if you switch tabs mid-rest.
+    const timer = {
+      display: document.getElementById("timer-display"),
+      fill: document.getElementById("timer-fill"),
+      toggle: document.getElementById("timer-toggle"),
+      restSecs: 120,    // chosen rest length
+      total: 120,       // length of the current rest (can grow with +30s)
+      endsAt: null,     // clock time (ms) when rest is over; null = stopped
+      beeped: false,
+      tick: null,
+    };
+    const pageTitle = document.title;
+
+    // Remember the chosen rest length between visits (a convenience, so failures are fine).
+    try { timer.restSecs = Number(localStorage.getItem("rest-secs")) || 120; } catch {}
+
+    function formatTime(secs) {
+      return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    }
+
+    function drawTimer() {
+      if (timer.endsAt === null) {
+        timer.display.textContent = formatTime(timer.restSecs);
+        timer.display.className = "timer-display";
+        timer.fill.style.width = "0%";
+        document.title = pageTitle;
+        return;
+      }
+      const left = Math.ceil((timer.endsAt - Date.now()) / 1000);
+      if (left > 0) {
+        timer.display.textContent = formatTime(left);
+        timer.display.className = "timer-display running";
+        timer.fill.style.width = `${100 * (1 - left / timer.total)}%`;
+        document.title = `${formatTime(left)} rest · ${pageTitle}`;
+      } else {
+        // Rest is over: keep counting up, so you can see how long you've overrun.
+        if (!timer.beeped) { beep(); timer.beeped = true; }
+        timer.display.textContent = `Go! +${formatTime(-left)}`;
+        timer.display.className = "timer-display over";
+        timer.fill.style.width = "100%";
+        document.title = `Go! · ${pageTitle}`;
+      }
+    }
+
+    function startTimer() {
+      timer.total = timer.restSecs;
+      timer.endsAt = Date.now() + timer.total * 1000;
+      timer.beeped = false;
+      timer.toggle.textContent = "Stop";
+      clearInterval(timer.tick);
+      timer.tick = setInterval(drawTimer, 250);
+      drawTimer();
+    }
+
+    function stopTimer() {
+      timer.endsAt = null;
+      timer.toggle.textContent = "Start";
+      clearInterval(timer.tick);
+      drawTimer();
+    }
+
+    // Three short beeps made with the Web Audio API, so no sound file is needed.
+    let audio = null;
+    function beep() {
+      if (!audio) return;
+      for (let i = 0; i < 3; i++) {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        const t = audio.currentTime + i * 0.25;
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      }
+    }
+    // Browsers only allow sound after you've clicked something on the page,
+    // so the audio is switched on with your first click.
+    document.addEventListener("click", () => {
+      if (!audio && window.AudioContext) audio = new AudioContext();
+    }, { once: true, capture: true });
+
+    timer.toggle.addEventListener("click", () => {
+      if (timer.endsAt === null) startTimer(); else stopTimer();
+    });
+    document.getElementById("timer-add").addEventListener("click", () => {
+      if (timer.endsAt === null) return;
+      // If rest already ran out, add 30 s from now rather than from the old end time.
+      timer.endsAt = Math.max(timer.endsAt, Date.now()) + 30000;
+      timer.total = Math.max(timer.total, Math.ceil((timer.endsAt - Date.now()) / 1000));
+      timer.beeped = false;
+      drawTimer();
+    });
+
+    const presets = document.querySelectorAll("#rest-presets button");
+    function markPreset() {
+      for (const b of presets) b.setAttribute("aria-checked", Number(b.dataset.secs) === timer.restSecs);
+    }
+    for (const btn of presets) {
+      btn.addEventListener("click", () => {
+        timer.restSecs = Number(btn.dataset.secs);
+        try { localStorage.setItem("rest-secs", timer.restSecs); } catch {}
+        markPreset();
+        if (timer.endsAt === null) drawTimer(); else startTimer();
+      });
+    }
+    markPreset();
+    drawTimer();
+
     // ---------- Daily form ----------
     const dayForm = document.getElementById("day-form");
     const dayStatus = document.getElementById("day-status");
     dayForm.date.value = today();
 
+    // Bodyweight is optional but strongly recommended. The first Save without it
+    // asks once; pressing Save again saves anyway (for days without a scale).
+    let askedAboutBodyweight = false;
+
     dayForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!dayForm.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(dayForm));
+      // A date with nothing else would save a blank row, so ask for at least one value.
+      if (!Object.entries(data).some(([key, value]) => key !== "date" && value !== "")) {
+        showStatus(dayStatus, "Fill in at least one value (like bodyweight or sleep).", false);
+        return;
+      }
+      if (!data.bodyweight_lbs && !askedAboutBodyweight) {
+        askedAboutBodyweight = true;
+        dayStatus.textContent = "No bodyweight today? Add it if you can, or press Save again to skip it.";
+        dayStatus.className = "status warn";
+        dayForm.bodyweight_lbs.focus();
+        return;
+      }
       try {
-        const { saved } = await post("/api/daily", Object.fromEntries(new FormData(dayForm)));
+        const { saved } = await post("/api/daily", data);
+        askedAboutBodyweight = false;
         showStatus(dayStatus, `Saved check-in for ${saved.date}`, true);
         refresh();
       } catch (err) {

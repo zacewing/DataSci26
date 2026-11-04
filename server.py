@@ -113,15 +113,21 @@ def clean_daily(data):
     train_time = str(data.get("train_time", "")).strip().lower()
     if train_time not in TRAIN_TIMES:
         raise BadInput("Training time must be morning, afternoon, evening, or blank.")
-    return {
+    row = {
         "date": as_date(data.get("date")),
         "sleep_hours": as_number(data.get("sleep_hours"), "Sleep", 0, 24, required=False),
+        # Recommended but optional: not everyone has a scale every day.
         "bodyweight_lbs": as_number(data.get("bodyweight_lbs"), "Bodyweight", 50, 600, required=False),
         "soreness": as_number(data.get("soreness"), "Soreness", 1, 10, required=False),
         "energy": as_number(data.get("energy"), "Energy", 1, 10, required=False),
         "protein_g": as_number(data.get("protein_g"), "Protein", 0, 1000, required=False),
         "train_time": train_time,
     }
+    # A check-in with only a date adds a blank row and would hide the
+    # "no check-in today" reminder, so at least one value is required.
+    if not any(value != "" for key, value in row.items() if key != "date"):
+        raise BadInput("Fill in at least one value (like bodyweight or sleep).")
+    return row
 
 
 # ---------- Web server ----------
