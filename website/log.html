@@ -24,13 +24,20 @@
     <div class="hero compact">
       <p class="eyebrow">Log</p>
       <h1>Log today</h1>
-      <p class="lede">Entries are saved to your CSV logs and show up in the dashboard within a few seconds.</p>
+      <p class="lede" id="log-lede">Entries are saved to your CSV logs and show up in the dashboard within a few seconds.</p>
+      <p id="hosted-note" class="status-note" hidden>
+        📝 <strong>Logging only works on my own computer.</strong> This page saves sets and daily
+        check-ins to CSV files through a small Python server (<code>server.py</code>) that runs locally,
+        so my real training data never goes online. To see what the data turns into, open the
+        <a href="dashboard.html">dashboard demo</a>.
+      </p>
       <p id="offline" class="status error" hidden>
         Can't reach the logging server, so entries won't save. Start it with
         <code>.venv/bin/python server.py</code> and open <a href="http://localhost:8000/log.html">localhost:8000/log.html</a>.
       </p>
     </div>
 
+    <div id="log-app">
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-set" aria-selected="true" aria-controls="panel-set">Sets</button>
       <button role="tab" id="tab-day" aria-selected="false" aria-controls="panel-day">Daily check-in</button>
@@ -110,6 +117,7 @@
         </div>
       </div>
     </section>
+    </div>
   </main>
 
   <footer>
@@ -165,6 +173,18 @@
       }
     }
 
+    // ---------- Hosted vs. local ----------
+    // On GitHub Pages there is no server.py, so the form can never save. Visitors
+    // get an explanation instead of an error; on my Mac the error stays, because
+    // there it means "you forgot to start the server".
+    const isHosted = !["localhost", "127.0.0.1", ""].includes(location.hostname);
+
+    function showHostedNote() {
+      document.getElementById("log-lede").hidden = true;
+      document.getElementById("log-app").hidden = true;
+      document.getElementById("hosted-note").hidden = false;
+    }
+
     // ---------- Recent entries ----------
     async function refresh() {
       try {
@@ -185,7 +205,8 @@
         const list = document.getElementById("exercise-list");
         list.replaceChildren(...data.exercises.map(name => new Option(name)));
       } catch {
-        document.getElementById("offline").hidden = false;
+        if (isHosted) showHostedNote();
+        else document.getElementById("offline").hidden = false;
       }
     }
 

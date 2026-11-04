@@ -46,7 +46,7 @@
       <div class="grid">
         <div class="card">
           <h3>1 · Log</h3>
-          <p>Every set (exercise, weight, reps, effort) goes into a spreadsheet, plus daily sleep, soreness, energy and bodyweight.</p>
+          <p>Every set (exercise, weight, reps, effort) is entered on the Log page and saved to a CSV file, plus daily sleep, soreness, energy and bodyweight.</p>
         </div>
         <div class="card">
           <h3>2 · Estimate</h3>
@@ -87,7 +87,7 @@
     <section>
       <h2>Build progress</h2>
       <ol class="steps">
-        <li><span class="badge done">Done</span><div><strong>Load and clean data</strong><span class="desc">Reads the log straight from Numbers, fixes typos and inconsistent names, computes e1RM, weekly volume and rolling averages.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>Load and clean data</strong><span class="desc">Reads the CSV logs filled in from the Log tab, fixes typos and inconsistent names, computes e1RM, weekly volume and rolling averages.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>e1RM charts</strong><span class="desc">Interactive trend chart per lift, plus weekly volume.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Plateau detection</strong><span class="desc">Fits a trend line through the last 8 weeks and flags a lift after 2 flat weeks. Tested on simulated data with planted plateaus: it agreed with the truth about 75% of the time, and reacts a few weeks late.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Prediction model</strong><span class="desc">Predicts next-session e1RM from recent form and recovery. On simulated data, linear regression's typical miss was 42% smaller than guessing "same as last time." Needs about 30 real sessions before it runs on my logs.</span></div></li>
@@ -101,7 +101,7 @@
       <h2>Built with</h2>
       <ul class="chips">
         <li>Python</li><li>pandas</li><li>NumPy</li><li>scikit-learn</li>
-        <li>Vega-Lite</li><li>GitHub Pages</li><li>Claude API</li><li>Apple Numbers</li>
+        <li>Vega-Lite</li><li>GitHub Pages</li><li>Claude API</li>
       </ul>
     </section>
   </main>
