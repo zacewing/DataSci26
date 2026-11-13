@@ -7,30 +7,35 @@ week. If the slope stays near zero for several weeks in a row, it's a plateau.
 import numpy as np
 import pandas as pd
 
-# These settings were chosen by testing on simulated data with known plateaus
-# (python -m src.evaluate_plateau): they agreed with the truth most often.
+# These settings were chosen by python -m src.benchmark: tried on 80 random
+# simulated lifters, they gave the best F1 (balance of catching real stalls and
+# not crying wolf), then were confirmed on 200 different lifters. The first
+# version (8 weeks, 0.35%, 2 weeks) was tuned on one scripted lifter and scored
+# worse than the simple "no PR in 3 weeks" rule on new lifters.
 
-# Why 8 weeks: day-to-day e1RM swings by a few percent (sleep, stress, warm-ups).
-# A shorter window lets one good or bad day swing the slope, and a lift trained
-# once a week (deadlift) only gets a handful of points. Longer windows react
-# more slowly to a real stall, so this is a trade-off.
-WINDOW_DAYS = 56
+# Why 6 weeks: day-to-day e1RM swings by a few percent (sleep, stress, warm-ups).
+# A shorter window lets one good or bad day swing the slope; a longer one reacts
+# slowly to a real stall. 6 weeks was the best trade-off in the benchmark.
+WINDOW_DAYS = 42
 MIN_SESSIONS = 6  # don't trust a line through fewer points than this
 
 # Why a percentage: "1 lb/week" means a lot more on bench than on deadlift.
-# Below 0.35% of the lift per week (~1.4 lbs/week at 400) counts as stalled.
-STALL_PCT_PER_WEEK = 0.35
+# Below 0.5% of the lift per week (~2 lbs/week at 400) counts as stalled.
+STALL_PCT_PER_WEEK = 0.5
 
-# Why 2 weeks: one flat week is often noise; two in a row is a pattern.
-PLATEAU_WEEKS = 2
+# Why 1 week: the 6-week trend line already smooths out single bad days, so
+# waiting for a second flat week mostly just delayed real catches.
+PLATEAU_WEEKS = 1
 
 
-def weekly_trend(daily_best):
+def weekly_trend(daily_best, window_days=WINDOW_DAYS, stall_pct=STALL_PCT_PER_WEEK,
+                 plateau_weeks=PLATEAU_WEEKS):
     """Rate of progress for each lift at the end of every week.
 
     daily_best: output of analysis.best_e1rm_per_day (exercise, date, e1rm).
     Returns one row per lift per week: slope (lbs/week), slope as % of the
     lift, whether that week counts as stalled, and how many weeks in a row.
+    The settings default to the app's; src/benchmark.py passes others to test them.
     """
     rows = []
     for lift, sessions in daily_best.groupby("exercise"):
@@ -41,10 +46,9 @@ def weekly_trend(daily_best):
             sessions["date"].max() + pd.Timedelta(days=6),
             freq="W-SUN",
         )
-        stalled_streak = 0
         for week_end in week_ends:
             in_window = sessions[
-                (sessions["date"] > week_end - pd.Timedelta(days=WINDOW_DAYS))
+                (sessions["date"] > week_end - pd.Timedelta(days=window_days))
                 & (sessions["date"] <= week_end)
             ]
             if len(in_window) < MIN_SESSIONS:
@@ -52,22 +56,32 @@ def weekly_trend(daily_best):
             days = (in_window["date"] - in_window["date"].min()).dt.days
             slope_per_day = np.polyfit(days, in_window["e1rm"], 1)[0]
             slope = slope_per_day * 7
-            pct = 100 * slope / in_window["e1rm"].mean()
-            stalled = pct < STALL_PCT_PER_WEEK
-            stalled_streak = stalled_streak + 1 if stalled else 0
             rows.append({
                 "exercise": lift,
                 "week_end": week_end,
                 "slope_lbs_per_week": slope,
-                "slope_pct_per_week": pct,
-                "stalled": stalled,
-                "stalled_weeks": stalled_streak,
-                "plateau": stalled_streak >= PLATEAU_WEEKS,
+                "slope_pct_per_week": 100 * slope / in_window["e1rm"].mean(),
             })
-    return pd.DataFrame(rows, columns=[
+    trend = pd.DataFrame(rows, columns=["exercise", "week_end", "slope_lbs_per_week", "slope_pct_per_week"])
+    return add_plateau_flags(trend, stall_pct, plateau_weeks)
+
+
+def add_plateau_flags(trend, stall_pct=STALL_PCT_PER_WEEK, plateau_weeks=PLATEAU_WEEKS):
+    """Turn weekly slopes into stalled / plateau calls.
+
+    Kept separate from the slope fitting so the benchmark can try many
+    thresholds without refitting every line (the slow part).
+    """
+    trend = trend.copy()
+    trend["stalled"] = trend["slope_pct_per_week"] < stall_pct
+    # Weeks in a row stalled: the count restarts after every non-stalled week.
+    streak_id = (~trend["stalled"]).groupby(trend["exercise"]).cumsum()
+    trend["stalled_weeks"] = trend["stalled"].astype(int).groupby([trend["exercise"], streak_id]).cumsum()
+    trend["plateau"] = trend["stalled_weeks"] >= plateau_weeks
+    return trend[[
         "exercise", "week_end", "slope_lbs_per_week", "slope_pct_per_week",
         "stalled", "stalled_weeks", "plateau",
-    ])
+    ]]
 
 
 def current_status(trend, lifts):

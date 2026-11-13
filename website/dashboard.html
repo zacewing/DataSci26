@@ -18,6 +18,7 @@
       <nav>
         <a href="index.html">Project</a>
         <a href="dashboard.html" aria-current="page">Dashboard</a>
+        <a href="results.html">Results</a>
         <a href="log.html">Log</a>
         <a href="about.html">About Me</a>
       </nav>
@@ -56,11 +57,10 @@
         <details class="card details">
           <summary>How plateau detection works</summary>
           <p>
-            Every week, a straight line is fit through the last 8 weeks of sessions. Its slope is the
-            rate of progress. Gaining under <strong>0.35% of the lift per week</strong> counts as stalled,
-            and <strong>2 stalled weeks in a row</strong> is flagged as a plateau. On simulated data with
-            known plateaus, this agreed with the truth about 75% of the time. It reacts a few weeks late,
-            because it needs a run of flat sessions before it's sure.
+            Every week, a straight line is fit through the last 6 weeks of sessions. Its slope is the
+            rate of progress. Gaining under <strong>0.5% of the lift per week</strong> is flagged as a plateau.
+            These settings were tuned on 80 simulated lifters and tested on 200 others: F1 56%, better than the
+            simple rule "no PR in 3 weeks" (52%), at the cost of some false alarms. See <a href="results.html">Results</a>.
           </p>
           <div id="chart-rate" class="chart"></div>
         </details>

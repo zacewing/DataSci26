@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Does It Work?</title>
+  <meta name="description" content="How well the plateau detector and prediction model hold up on hundreds of simulated lifters they were never tuned on.">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.30.0/build/vega.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.21.0/build/vega-lite.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.26.0/build/vega-embed.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="index.html">🏋️ Gym Progress Tracker <span class="muted">· Zac</span></a>
+      <nav>
+        <a href="index.html">Project</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="results.html" aria-current="page">Results</a>
+        <a href="log.html">Log</a>
+        <a href="about.html">About Me</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero compact">
+      <p class="eyebrow">Results</p>
+      <h1>Does it actually work?</h1>
+      <p class="lede" id="lede">
+        Every model here was scored on simulated lifters it had never seen, against a simple
+        rule of thumb, with 95% confidence intervals.
+      </p>
+    </div>
+
+    <p id="loading" class="muted">Loading results…</p>
+    <p id="load-error" class="status error" hidden>Couldn't load the results file (data/benchmark.json).</p>
+
+    <div id="results" hidden>
+      <div class="stat-row" id="stats"></div>
+
+      <section>
+        <h2>How it was tested</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Many different lifters</h3>
+            <p>Each simulated lifter gets a random starting strength, rate of progress, schedule (2 to 5 days a week),
+              day-to-day noise, and randomly placed plateaus, regressions and deloads. Because the simulation knows each
+              lifter's true strength, we know exactly when they really stalled.</p>
+          </div>
+          <div class="card">
+            <h3>Tune on some, test on others</h3>
+            <p id="split-text">Settings were chosen on one group of lifters. Every score on this page comes from a separate
+              group the tuning never saw. Scoring on the same data you tuned on makes a model look better than it is.</p>
+          </div>
+          <div class="card">
+            <h3>Honest error bars</h3>
+            <p>Intervals come from resampling whole lifters (a cluster bootstrap). One lifter's weeks are related to each
+              other, so treating every week as independent would make the intervals look falsely narrow.</p>
+          </div>
+          <div class="card">
+            <h3>A baseline to beat</h3>
+            <p>A model only earns its complexity if it beats something simple. For plateaus that's the gym rule
+              <em>"no new best in 3 weeks"</em>; for predictions it's <em>"same as last session"</em>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Plateau detection</h2>
+        <p id="detector-text"></p>
+        <div class="chart-card"><div id="chart-detector" class="chart"></div></div>
+        <div class="table-wrap"><table id="table-detector"></table></div>
+        <details class="card details">
+          <summary>What the measures mean</summary>
+          <p><strong>Precision:</strong> when it says "plateau", how often that's true.
+            <strong>Recall:</strong> of the weeks a lifter was really stalled, how many it flagged.
+            <strong>F1:</strong> one score that balances the two.
+            <strong>Plateaus caught:</strong> share of real plateaus (3+ weeks) flagged at some point, allowing a
+            <span id="grace"></span>-week lag. <strong>False alarms:</strong> share of flagged stretches where the lifter was
+            actually progressing the whole time.</p>
+          <p id="truth-def"></p>
+        </details>
+      </section>
+
+      <section>
+        <h2>The trade-off</h2>
+        <p id="tradeoff-text"></p>
+        <div class="chart-card"><div id="chart-tradeoff" class="chart"></div></div>
+        <p class="note">Each gray dot is one combination of settings (window length × stall threshold × weeks in a row),
+          scored on the tuning lifters. Up and to the right is better. Hover a dot to see its settings.</p>
+      </section>
+
+      <section>
+        <h2>Where it struggles</h2>
+        <p id="groups-text"></p>
+        <div class="results-pair">
+          <div class="chart-card"><div id="chart-noise" class="chart"></div></div>
+          <div class="chart-card"><div id="chart-plan" class="chart"></div></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Next-session prediction</h2>
+        <p id="model-text"></p>
+        <div class="chart-card"><div id="chart-model" class="chart"></div></div>
+        <div class="table-wrap"><table id="table-model"></table></div>
+        <p class="note">Error is the average miss as a percentage of the lifter's e1RM, so strong and weaker lifters count
+          equally. The p-value is from a Wilcoxon signed-rank test: same lifters, model vs. baseline.</p>
+      </section>
+
+      <section>
+        <h2>Limitations</h2>
+        <ul class="plain-list">
+          <li><strong>It's simulated.</strong> The lifters follow rules I wrote. Real training is messier: injuries,
+            program changes, missed weeks. These results show the methods work when the world behaves like the
+            simulation, not that it always does.</li>
+          <li><strong>The prediction model can only learn what the simulation contains.</strong> Sleep and soreness affect
+            simulated performance because I built them in, so finding that effect isn't a discovery about real lifters.</li>
+          <li><strong>"Truly stalled" is a definition.</strong> Here it means true strength grew under 0.25% a week over two
+            weeks. A different cutoff would shift every score.</li>
+          <li><strong>e1RM is an estimate.</strong> Epley's formula is less accurate above about 10 reps, and RPE is
+            self-reported.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Reproduce it</h2>
+        <p>Everything on this page comes from one command, with fixed random seeds so it gives the same numbers every time:</p>
+        <p class="formula">python -m src.benchmark</p>
+        <p class="note" id="generated"></p>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">Gym Progress Tracker · a class project by Zac Ewing · FAU Data Science &amp; Analytics</div>
+  </footer>
+
+  <script src="results.js"></script>
+</body>
+</html>

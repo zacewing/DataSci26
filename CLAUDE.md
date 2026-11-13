@@ -15,6 +15,7 @@ Class project (FAU, Data Science & Analytics). Tracks lifting + recovery data, m
 - GitHub Pages: static only, no Python. `python -m src.export_site` writes `website/data/dashboard-sim.json`; without the server, the Dashboard tab falls back to that simulated demo. Never export real data there. Rerun the export after changing analysis code.
 - Simulated data: `python -m src.simulate` writes `data/sim/` (workouts, daily, and `truth.csv` with the planted plateaus). Fake data, fine to commit; never mix it into the real CSVs.
 - Modules: `src/plateau.py` (trend + plateau flags), `src/evaluate_plateau.py` (scores the detector vs. sim truth), `src/model.py` (baseline vs. linear vs. random forest, time-based split), `src/summary.py` (weekly stats → Claude summary, rule-based fallback without a key)
+- Benchmark: `python -m src.benchmark` (~70 s) scores the plateau detector and prediction model on hundreds of random simulated lifters (tune on one set, test on another, cluster-bootstrap 95% CIs, vs. simple baselines) and writes `website/data/benchmark.json` for the Results page (`website/results.html` + `results.js`). Rerun after changing analysis code. `simulate(seed, athlete=...)` takes an athlete profile; leaving it out gives the demo lifter.
 
 ## Conventions
 - Weights in lbs. RPE, soreness, and energy are 1-10.

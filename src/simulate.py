@@ -51,14 +51,22 @@ def true_strength(lift, week):
 PLAN = {0: ["squat", "bench"], 2: ["deadlift", "bench"], 4: ["squat", "bench"]}
 REP_CHOICES = {"squat": [3, 5], "bench": [3, 5, 8], "deadlift": [3, 5]}
 
+# An "athlete" is everything that makes one simulated lifter different: how
+# long they're tracked, their weekly plan, how noisy their days are, and their
+# hidden strength story. The demo uses this one; src/benchmark.py makes
+# hundreds of random ones to test the analysis on many kinds of lifters.
+DEMO_ATHLETE = {"weeks": WEEKS, "plan": PLAN, "noise": 0.012, "strength": true_strength}
+LIFTS = ["squat", "bench", "deadlift"]
+
 
 def round_to_5(x):
     return float(5 * round(x / 5))
 
 
-def simulate(seed=SEED):
+def simulate(seed=SEED, athlete=None):
+    athlete = athlete or DEMO_ATHLETE
     rng = np.random.default_rng(seed)
-    days = pd.date_range(START, periods=WEEKS * 7, freq="D")
+    days = pd.date_range(START, periods=athlete["weeks"] * 7, freq="D")
     sets, daily, truth = [], [], []
 
     bodyweight = 182.0
@@ -73,7 +81,7 @@ def simulate(seed=SEED):
         soreness = max(1.0, soreness * 0.6 + rng.normal(1.2, 0.6))
         energy = 5.5 + 1.3 * (sleep - 7.3) - 0.35 * (soreness - 3) + rng.normal(0, 1.0)
 
-        lifts_today = PLAN.get(day.weekday(), [])
+        lifts_today = athlete["plan"].get(day.weekday(), [])
         if lifts_today and rng.random() < 0.08:  # skip ~8% of planned sessions
             lifts_today = []
         train_time = ""
@@ -82,7 +90,7 @@ def simulate(seed=SEED):
 
         # ----- Training -----
         for lift in lifts_today:
-            strength, _ = true_strength(lift, week)
+            strength, _ = athlete["strength"](lift, week)
             # How strong you are *today*: better sleep helps, soreness and
             # morning sessions hurt a little, plus random day-to-day noise.
             day_factor = (
@@ -90,7 +98,7 @@ def simulate(seed=SEED):
                 + 0.010 * (sleep - 7.3)
                 - 0.004 * (soreness - 3)
                 - (0.012 if train_time == "morning" else 0)
-                + rng.normal(0, 0.012)
+                + rng.normal(0, athlete["noise"])
             )
             day_max = strength * day_factor
 
@@ -118,9 +126,10 @@ def simulate(seed=SEED):
             int(rng.normal(165, 20)), train_time,
         ))
 
-    for week in range(WEEKS):
-        for lift in ["squat", "bench", "deadlift"]:
-            strength, phase = true_strength(lift, week)
+    planned = {lift for lifts in athlete["plan"].values() for lift in lifts}
+    for week in range(athlete["weeks"]):
+        for lift in [l for l in LIFTS if l in planned]:
+            strength, phase = athlete["strength"](lift, week)
             truth.append((START + pd.Timedelta(weeks=week), lift, round(strength, 1), phase))
 
     workouts = pd.DataFrame(sets, columns=["date", "exercise", "weight_lbs", "reps", "rpe", "set_type"])
