@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Does It Work?</title>
   <meta name="description" content="How well the plateau detector and prediction model hold up on hundreds of simulated lifters they were never tuned on.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏋️</text></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/vega@5.30.0/build/vega.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.21.0/build/vega-lite.min.js"></script>
@@ -110,12 +111,47 @@
           equally. The p-value is from a Wilcoxon signed-rank test: same lifters, model vs. baseline.</p>
       </section>
 
+      <div id="real" hidden>
+        <section>
+          <p class="eyebrow">Real lifters</p>
+          <h2>Does it hold up on real people?</h2>
+          <p id="real-intro"></p>
+          <div class="stat-row" id="real-stats"></div>
+        </section>
+
+        <section>
+          <h2>Plateau calls predict missed PRs</h2>
+          <p id="real-plateau-text"></p>
+          <div class="chart-card"><div id="chart-real-plateau" class="chart"></div></div>
+          <div class="table-wrap"><table id="table-real-plateau"></table></div>
+          <p class="note" id="real-plateau-note"></p>
+        </section>
+
+        <section>
+          <h2>Forecasting the next meet: a negative result</h2>
+          <p id="real-forecast-text"></p>
+          <div class="chart-card"><div id="chart-real-forecast" class="chart"></div></div>
+          <div class="table-wrap"><table id="table-real-forecast"></table></div>
+        </section>
+
+        <section id="example-section">
+          <h2 id="example-title">One lifter's career</h2>
+          <p id="example-text"></p>
+          <div class="chart-card"><div id="chart-example" class="chart"></div></div>
+          <p class="note">Public competition results. Hollow points are meets where the trend line through that lift's last four
+            meets was flat or falling (a plateau call).</p>
+        </section>
+      </div>
+
       <section>
         <h2>Limitations</h2>
         <ul class="plain-list">
-          <li><strong>It's simulated.</strong> The lifters follow rules I wrote. Real training is messier: injuries,
-            program changes, missed weeks. These results show the methods work when the world behaves like the
-            simulation, not that it always does.</li>
+          <li><strong>The main benchmark is simulated.</strong> Those lifters follow rules I wrote. Real training is messier:
+            injuries, program changes, missed weeks. The real-lifter check covers this partly, but only for meet results,
+            which are months apart.</li>
+          <li><strong>Real-lifter results are predictive, not causal.</strong> A flat trend line goes with fewer PRs, but that
+            doesn't mean the flat trend causes them. And lifters with 6+ meets are more committed than most, so they may not
+            represent casual lifters.</li>
           <li><strong>The prediction model can only learn what the simulation contains.</strong> Sleep and soreness affect
             simulated performance because I built them in, so finding that effect isn't a discovery about real lifters.</li>
           <li><strong>"Truly stalled" is a definition.</strong> Here it means true strength grew under 0.25% a week over two
@@ -127,9 +163,12 @@
 
       <section>
         <h2>Reproduce it</h2>
-        <p>Everything on this page comes from one command, with fixed random seeds so it gives the same numbers every time:</p>
-        <p class="formula">python -m src.benchmark</p>
+        <p>Everything on this page comes from two commands, with fixed random seeds so they give the same numbers every time:</p>
+        <p class="formula">python -m src.benchmark<br>python -m src.openpowerlifting</p>
         <p class="note" id="generated"></p>
+        <p class="note">The real-lifter section uses data from the <a href="https://www.openpowerlifting.org">OpenPowerlifting</a>
+          project (public domain). You can download a copy at
+          <a href="https://gitlab.com/openpowerlifting/opl-data">gitlab.com/openpowerlifting/opl-data</a>.</p>
       </section>
     </div>
   </main>

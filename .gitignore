@@ -12,3 +12,6 @@ __pycache__/
 .venv/
 .ipynb_checkpoints/
 .DS_Store
+
+# OpenPowerlifting bulk data (large, re-downloadable): python -m src.openpowerlifting
+data/opl/

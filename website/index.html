@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gym Progress Tracker</title>
   <meta name="description" content="An AI-powered gym progress tracker: a Data Science & Analytics project at FAU.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏋️</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -93,6 +94,7 @@
         <li><span class="badge done">Done</span><div><strong>Plateau detection</strong><span class="desc">Fits a trend line through the last 6 weeks and flags a lift when it gains under 0.5% a week. The first settings, tuned on one scripted lifter, did worse than the simple rule "no PR in 3 weeks" on new lifters (F1 43% vs 52%). Re-tuned on separate lifters, it now scores 56% on 200 lifters it never saw. <a href="results.html">See the results</a>.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Prediction model</strong><span class="desc">Predicts next-session e1RM from recent form and recovery. On 120 varied simulated lifters, linear regression's typical miss was 16% smaller than guessing "same as last time" (95% CI 13–19%). Needs about 30 real sessions before it runs on my logs.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Benchmark on hundreds of lifters</strong><span class="desc">Every model scored on simulated lifters it was never tuned on, against simple baselines, with 95% confidence intervals. <a href="results.html">Results</a>.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>Real-lifter check</strong><span class="desc">Tested on 30,000+ real powerlifters' public meet records (OpenPowerlifting). A flat trend line meant a PR at the next meet only 20% of the time vs. 46% otherwise. Trend lines barely beat "same as last meet" for forecasting. <a href="results.html">Results</a>.</span></div></li>
         <li><span class="badge wip">Started</span><div><strong>What drives good sessions</strong><span class="desc">How sleep, soreness and time of day relate to performance.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>AI weekly summary</strong><span class="desc">Claude turns the week's numbers into a plain-English check-in, with a rule-based version when no API key is set. Suggestions, not medical advice.</span></div></li>
         <li><span class="badge wip">Started</span><div><strong>Dashboard</strong><span class="desc">Live view of all of the above, with a simulated-data demo mode for features that need months of history.</span></div></li>
@@ -103,7 +105,7 @@
       <h2>Built with</h2>
       <ul class="chips">
         <li>Python</li><li>pandas</li><li>NumPy</li><li>scikit-learn</li>
-        <li>Vega-Lite</li><li>GitHub Pages</li><li>Claude API</li>
+        <li>Vega-Lite</li><li>SciPy</li><li>GitHub Pages</li><li>Claude API</li><li>OpenPowerlifting data</li>
       </ul>
     </section>
   </main>

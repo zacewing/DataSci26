@@ -4,3 +4,5 @@ scikit-learn
 matplotlib
 anthropic
 numbers-parser
+scipy
+pyarrow

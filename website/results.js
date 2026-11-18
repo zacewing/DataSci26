@@ -11,6 +11,7 @@ function colors() {
   const v = (name) => css.getPropertyValue(name).trim();
   return {
     current: v("--series-1"), tuned: v("--series-3"), baseline: v("--muted"),
+    s1: v("--series-1"), s2: v("--series-2"), s3: v("--series-3"),
     text: v("--text"), text2: v("--text-2"), muted: v("--muted"), grid: v("--grid"), axis: v("--axis"),
     surface: v("--surface"),
   };
@@ -43,6 +44,7 @@ function draw(id, spec) {
 }
 
 const pct = (x) => `${Math.round(100 * x)}%`;
+const pct1 = (x) => `${(100 * x).toFixed(1)}%`;
 const ci = ([est, lo, hi], f = pct) => `${f(est)} (${f(lo)}–${f(hi)})`;
 const settingsText = (s) => `${s.window_days / 7}-week window, ${s.stall_pct}%/week, ${s.plateau_weeks} week${s.plateau_weeks > 1 ? "s" : ""} in a row`;
 
@@ -237,6 +239,125 @@ function renderModel(r) {
      learn more than a straight line does.`;
 }
 
+// ---------- Real lifters (OpenPowerlifting) ----------
+
+const LB = 2.20462;
+
+function renderReal(o) {
+  const c = colors(), p = o.plateau, f = o.forecast;
+  $("real").hidden = false;
+  $("real-intro").innerHTML =
+    `The simulation shows the methods work when the world behaves like my simulator. To check real people, I used
+     <a href="https://www.openpowerlifting.org">OpenPowerlifting</a>: public competition results for
+     <strong>${o.data.lifters.toLocaleString()} raw powerlifters</strong> with ${o.data.min_meets}+ meets each
+     (${o.data.meets.toLocaleString()} meets, ${o.data.first_meet}–${o.data.last_meet.slice(0, 4)}). As before, settings were
+     chosen on ${o.data.tune_lifters.toLocaleString()} lifters and every score comes from the other
+     ${o.data.test_lifters.toLocaleString()}. Meets are months apart, so this tests the trend-line idea on a much slower clock,
+     and meets don't record sleep or soreness, so the full prediction model can't be tested here.`;
+
+  const d = p.detector, b = p.baseline;
+  $("real-stats").innerHTML = [
+    { big: `${pct(d.pr_rate_flagged[0])} vs ${pct(d.pr_rate_not_flagged[0])}`, label: "chance of a PR at the next meet: flagged as plateau vs. not",
+      sub: `${Math.round(100 * d.difference[0])}-point gap (95% CI ${(100 * d.difference[1]).toFixed(1)}–${(100 * d.difference[2]).toFixed(1)})` },
+    { big: p.auc_slope.toFixed(2), label: "AUC: how well the trend slope alone ranks who will PR",
+      sub: "0.5 = coin flip, 1.0 = perfect" },
+    { big: `${f.methods.trend.improvement_pct[0].toFixed(1)}%`, label: "better next-meet forecast than “same as last meet”",
+      sub: "real but tiny: last meet is hard to beat" },
+  ].map((t) => `<div class="card stat"><div class="stat-big">${t.big}</div><div class="stat-label">${t.label}</div><div class="note">${t.sub}</div></div>`).join("");
+
+  // Plateau: PR rate if flagged vs. not, for the detector and the rule.
+  const groups = ["Called a plateau", "Not called"];
+  const rows = [];
+  for (const [name, m] of [["Trend-line detector", d], ["No PR in last 2 meets (rule)", b]]) {
+    rows.push({ method: name, group: groups[0], est: m.pr_rate_flagged[0], lo: m.pr_rate_flagged[1], hi: m.pr_rate_flagged[2] });
+    rows.push({ method: name, group: groups[1], est: m.pr_rate_not_flagged[0], lo: m.pr_rate_not_flagged[1], hi: m.pr_rate_not_flagged[2] });
+  }
+  const spec = dotInterval({ y: "method", yOffset: "group", color: "group", colorDomain: groups, colorRange: [c.s2, c.s1],
+    xTitle: "Chance of a PR at the next meet (95% CI)", height: 150, xDomain: [0, 0.6] });
+  spec.encoding.y.title = null;
+  draw("chart-real-plateau", { data: { values: rows }, ...spec });
+
+  table("table-real-plateau",
+    [["Method"], ["Flags", 1], ["PR rate if flagged", 1], ["PR rate if not", 1], ["Gap", 1]],
+    [["Trend-line detector", d], ["No PR in last 2 meets (rule)", b]].map(([n, m]) => [
+      // One decimal: with ~450,000 predictions the intervals are narrower than a whole percent.
+      n, pct(m.flagged_share), ci(m.pr_rate_flagged, pct1), ci(m.pr_rate_not_flagged, pct1), ci(m.difference, pct1)]));
+  const lifts = p.by_lift.map((l) => `${l.lift} ${pct(l.pr_rate_flagged[0])} vs ${pct(l.pr_rate_not_flagged[0])}`).join(", ");
+  $("real-plateau-text").innerHTML =
+    `At each meet, the detector's method fit a trend line through that lift's last ${p.settings.window_meets} meets. When the line
+     was flat or falling, the lifter set a PR at their next meet <strong>${pct(d.pr_rate_flagged[0])}</strong> of the time,
+     versus <strong>${pct(d.pr_rate_not_flagged[0])}</strong> when it wasn't (overall: ${pct(p.overall_pr_rate)}). That separates
+     lifters better than the rule "no PR in the last 2 meets" (a ${Math.round(100 * b.difference[0])}-point gap) while flagging fewer
+     of them (${pct(d.flagged_share)} vs ${pct(b.flagged_share)}). It holds for every lift: ${lifts}.`;
+  $("real-plateau-note").textContent =
+    `Based on ${p.points.toLocaleString()} meet-to-meet predictions from ${p.lifters.toLocaleString()} test lifters. "Flat" was fixed
+     in advance (slope below ${p.settings.slope_pct_per_week}% per week) rather than tuned, so this result can't come from picking
+     the cutoff that looked best.`;
+
+  // Forecasting: error of each method.
+  const label = { last: "Same as last meet", mean3: "Average of last 3 meets", trend: "Damped trend (tuned)", full_trend: "Full trend line" };
+  const order = ["last", "mean3", "trend", "full_trend"];
+  const frows = order.map((k) => ({ group: label[k], est: f.methods[k].mae_pct[0] / 100, lo: f.methods[k].mae_pct[1] / 100, hi: f.methods[k].mae_pct[2] / 100 }));
+  const fspec = dotInterval({ y: "group", xTitle: "Average miss at the next meet, % of the lift (95% CI, lower is better)", xFormat: ".1%", height: 150 });
+  fspec.encoding.color = { condition: { test: "datum.group === 'Same as last meet'", value: c.baseline }, value: c.current };
+  draw("chart-real-forecast", { data: { values: frows }, ...fspec });
+  table("table-real-forecast",
+    [["Forecast"], ["Avg. miss", 1], ["vs. same as last meet", 1], ["Better for", 1]],
+    order.map((k) => [
+      k === "last" ? `${label[k]} (baseline)` : label[k],
+      ci(f.methods[k].mae_pct, (x) => `${x.toFixed(2)}%`),
+      f.methods[k].improvement_pct ? ci(f.methods[k].improvement_pct, (x) => `${x.toFixed(1)}%`) : "–",
+      f.methods[k].beats_last_share != null ? `${pct(f.methods[k].beats_last_share)} of lifters` : "–",
+    ]));
+  const t = f.tuned;
+  $("real-forecast-text").innerHTML =
+    `Can a trend line predict a lifter's next meet? Barely. The best setting found on the tuning lifters used the last ${t.window}
+     meets but kept only ${Math.round(100 * t.damping)}% of the trend. That beat "same as last meet" by just
+     <strong>${f.methods.trend.improvement_pct[0].toFixed(1)}%</strong>: statistically real across
+     ${f.lifters.toLocaleString()} lifters, but too small to matter. Following the full trend made forecasts
+     <strong>${Math.abs(f.methods.full_trend.improvement_pct[0]).toFixed(0)}% worse</strong>. Meets are months apart and progress
+     slows, so straight-line extrapolation overshoots. This is why the app forecasts session-to-session from recent form, not by
+     extending a long trend.`;
+}
+
+function renderExample(e, testLifters) {
+  if (!e) { $("example-section").hidden = true; return; }
+  const c = colors();
+  const names = { squat: "Squat", bench: "Bench", deadlift: "Deadlift" };
+  const rows = e.meets.flatMap((m) => Object.keys(names).map((k) => ({
+    date: m.date, lift: names[k], lbs: Math.round(m[k] * LB * 10) / 10, kg: m[k],
+    call: m[`${k}_flat`] === null ? "Not enough meets yet" : m[`${k}_flat`] ? "Plateau call" : "Progressing",
+  })));
+  const domain = ["Squat", "Bench", "Deadlift"];
+  const color = { field: "lift", type: "nominal", scale: { domain, range: [c.s1, c.s2, c.s3] }, sort: domain };
+  const x = { field: "date", type: "temporal", title: null };
+  const y = { field: "lbs", type: "quantitative", title: "Best at the meet (lbs)", scale: { zero: false } };
+  draw("chart-example", {
+    height: 300,
+    data: { values: rows },
+    layer: [
+      // Straight segments: a smooth curve would suggest results between meets that never happened.
+      { mark: { type: "line", strokeWidth: 2 }, encoding: { x, y, color } },
+      { mark: { type: "point", filled: true, size: 70 },
+        encoding: { x, y, color,
+          tooltip: [{ field: "date", type: "temporal", title: "Meet" }, { field: "lift", title: "Lift" },
+            { field: "lbs", title: "lbs" }, { field: "kg", title: "kg" }, { field: "call", title: "Trend call" }] } },
+      // Plateau calls: punch a surface-colored hole in the dot so it reads as hollow.
+      // (A separate layer, because encoding fill by lift would hide the color legend.)
+      { transform: [{ filter: "datum.call === 'Plateau call'" }],
+        mark: { type: "point", filled: true, size: 22, color: c.surface, opacity: 1 },
+        encoding: { x, y, tooltip: [{ field: "date", type: "temporal", title: "Meet" }, { field: "lift", title: "Lift" },
+          { field: "lbs", title: "lbs" }, { field: "call", title: "Trend call" }] } },
+    ],
+  });
+  const flat = e.meets.filter((m) => Object.keys(names).some((k) => m[`${k}_flat`])).length;
+  $("example-title").textContent = `One lifter's career: ${e.name}`;
+  $("example-text").textContent =
+    `${e.name} is one of the best-known raw powerlifters. The public record here covers ${e.meets.length} meets from
+     ${e.meets[0].date.slice(0, 4)} to ${e.meets[e.meets.length - 1].date.slice(0, 4)}. The detector's method called at least one lift
+     flat at ${flat} of them. This is just an illustration; the evidence is the ${testLifters.toLocaleString()} test lifters above.`;
+}
+
 async function start() {
   let r;
   try {
@@ -249,8 +370,8 @@ async function start() {
   $("loading").hidden = true;
   $("results").hidden = false;
   $("lede").textContent =
-    `Every number here comes from ${r.design.test_lifters} simulated lifters the models were never tuned on, compared against a simple
-     rule of thumb, with 95% confidence intervals.`;
+    `Tested on ${r.design.test_lifters} simulated lifters the models were never tuned on, then checked against tens of thousands
+     of real powerlifters' competition records. Every result is compared with a simple rule of thumb and given a 95% confidence interval.`;
   $("split-text").textContent =
     `Settings were chosen on ${r.design.tune_lifters} lifters. Every score on this page comes from ${r.design.test_lifters} different
      lifters the tuning never saw. Scoring on the same data you tuned on makes a model look better than it is.`;
@@ -260,6 +381,14 @@ async function start() {
   renderTradeoff(r);
   renderGroups(r);
   renderModel(r);
+  // The real-lifter section is optional: the page still works without its data file.
+  try {
+    const o = await (await fetch("data/opl.json")).json();
+    renderReal(o);
+    renderExample(o.example, o.data.test_lifters);
+  } catch (err) {
+    console.warn("No real-lifter results:", err);
+  }
 }
 
 start();
