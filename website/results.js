@@ -239,6 +239,70 @@ function renderModel(r) {
      learn more than a straight line does.`;
 }
 
+// ---------- What drives good sessions ----------
+
+function renderDrivers(dr) {
+  const c = colors();
+  $("drivers").hidden = false;
+  const label = { sleep_hours: "Each extra hour of sleep", soreness: "Each extra point of soreness", is_morning: "Training in the morning" };
+  const short = { sleep_hours: "Sleep", soreness: "Soreness", is_morning: "Morning training" };
+
+  // Found (dot + 95% interval) vs. the true effect built into the simulator (gray diamond).
+  const rows = dr.recovery.map((r) => ({ group: label[r.driver], est: r.estimate / 100, lo: r.low / 100, hi: r.high / 100, truth: r.true / 100 }));
+  const spec = dotInterval({ y: "group", xTitle: "Effect on session quality (95% CI)", xFormat: "+.1%", height: 140 });
+  spec.layer.push({
+    mark: { type: "point", shape: "diamond", filled: true, size: 110, color: c.baseline, stroke: c.surface, strokeWidth: 1.5 },
+    encoding: { x: { field: "truth", type: "quantitative", axis: { labels: false, ticks: false, domain: false, grid: false, title: null } },
+      tooltip: [{ field: "group", title: "Driver" }, { field: "truth", title: "True effect", format: "+.2%" },
+        { field: "est", title: "Found", format: "+.2%" }] },
+  });
+  draw("chart-drivers", { data: { values: rows }, ...spec });
+
+  table("table-drivers", [["Driver"], ["True effect", 1], ["Found (95% CI)", 1], ["Verdict"]],
+    dr.recovery.map((r) => [
+      label[r.driver], `${r.true > 0 ? "+" : ""}${r.true.toFixed(2)}%`,
+      `${r.estimate > 0 ? "+" : ""}${r.estimate.toFixed(2)}% (${r.low.toFixed(2)} to ${r.high.toFixed(2)})`,
+      r.low <= r.true && r.true <= r.high ? "✓ Recovered" : "Underestimated (see below)",
+    ]));
+  const sore = dr.recovery.find((r) => r.driver === "soreness");
+  $("drivers-text").innerHTML =
+    `Does sleep, soreness or training time change how a session goes? For each session, the method asks how far above or below
+     <em>that lifter's</em> normal it was (compared with the ${dr.neighbors} sessions before and after), then fits a regression on all
+     three at once, so one isn't blamed for another's effect. The simulator has known effects built in, so we can check the answers.
+     Across ${dr.lifters} lifters (${dr.sessions.toLocaleString()} sessions), it recovers the sleep and morning effects almost exactly.
+     Soreness comes out about ${Math.round(100 * (1 - sore.estimate / sore.true))}% too small.`;
+
+  // Power: share of single lifters where each effect is clearly found, by weeks of logging.
+  const keys = ["sleep_hours", "is_morning", "soreness"];
+  const prow = dr.power.flatMap((p) => keys.map((k) => ({ weeks: p.weeks, sessions: p.median_sessions, driver: short[k], found: p[`found_${k}`] })));
+  const domain = keys.map((k) => short[k]);
+  const enc = {
+    x: { field: "weeks", type: "quantitative", title: "Weeks of logging", axis: { values: dr.power.map((p) => p.weeks) }, scale: { domain: [0, 28] } },
+    y: { field: "found", type: "quantitative", title: "Lifters where the effect is clearly found", axis: { format: ".0%" }, scale: { domain: [0, 1] } },
+    color: { field: "driver", type: "nominal", scale: { domain, range: [c.s1, c.s2, c.s3] }, sort: domain },
+  };
+  const last = prow.filter((r) => r.weeks === Math.max(...dr.power.map((p) => p.weeks)));
+  draw("chart-power", {
+    height: 260, data: { values: prow },
+    layer: [
+      { mark: { type: "line", strokeWidth: 2 }, encoding: enc },
+      { mark: { type: "point", filled: true, size: 70 }, encoding: { ...enc,
+        tooltip: [{ field: "driver", title: "Driver" }, { field: "weeks", title: "Weeks" }, { field: "sessions", title: "Typical sessions" },
+          { field: "found", title: "Clearly found", format: ".0%" }] } },
+      { data: { values: last }, mark: { type: "text", align: "right", dx: -8, dy: -10, fontSize: 12 },
+        encoding: { x: enc.x, y: enc.y, text: { field: "driver" }, color: { value: c.text2 } } },
+    ],
+  });
+  const at = (w) => dr.power.find((p) => p.weeks === w);
+  const mid = at(13) || dr.power[1], full = dr.power[dr.power.length - 1];
+  $("power-text").innerHTML =
+    `For a single person, small effects take a lot of data to see. With ${mid.weeks} weeks of logs (about
+     ${Math.round(mid.median_sessions)} sessions), the sleep effect is clearly found for <strong>${pct(mid.found_sleep_hours)}</strong>
+     of lifters, but morning training for only ${pct(mid.found_is_morning)}. After ${full.weeks} weeks, morning training reaches
+     ${pct(full.found_is_morning)}, while soreness is still found for only ${pct(full.found_soreness)}. That's why the Dashboard waits for
+     at least ${dr.min_sessions} sessions and says when an effect isn't clear yet, instead of reporting noise as a finding.`;
+}
+
 // ---------- Real lifters (OpenPowerlifting) ----------
 
 const LB = 2.20462;
@@ -381,6 +445,11 @@ async function start() {
   renderTradeoff(r);
   renderGroups(r);
   renderModel(r);
+  try {
+    renderDrivers(await (await fetch("data/drivers.json")).json());
+  } catch (err) {
+    console.warn("No driver results:", err);
+  }
   // The real-lifter section is optional: the page still works without its data file.
   try {
     const o = await (await fetch("data/opl.json")).json();

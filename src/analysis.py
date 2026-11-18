@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from numbers_parser import Document
 
 # Build paths from this file's location so the code works no matter
 # which folder you run it from.
@@ -42,6 +41,9 @@ def read_table(path):
     """
     path = Path(path)
     if path.suffix == ".numbers":
+        # Imported here, not at the top, so the analysis also runs in a web
+        # browser (website/upload.js), where this Mac-only reader doesn't exist.
+        from numbers_parser import Document
         rows = Document(path).sheets[0].tables[0].rows(values_only=True)
         return pd.DataFrame(rows[1:], columns=[str(c).strip() for c in rows[0]])
     return pd.read_csv(path)

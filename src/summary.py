@@ -6,7 +6,6 @@ Two ways to write it:
 
 Either way, the summary is a suggestion, not medical advice.
 """
-import anthropic
 import pandas as pd
 
 from src.analysis import best_e1rm_per_day, weekly_volume
@@ -94,6 +93,10 @@ def has_api_credentials():
     The key is read from the ANTHROPIC_API_KEY environment variable by the SDK;
     it's never written in the code.
     """
+    # Imported here, not at the top, so the rest of this file also runs in a web
+    # browser (website/upload.js), where the Anthropic library isn't available.
+    import anthropic
+
     client = anthropic.Anthropic()
     return bool(client.api_key or client.auth_token or client.credentials)
 
@@ -101,6 +104,8 @@ def has_api_credentials():
 def ai_summary(stats):
     """Ask Claude to write the summary. Raises SummaryError if it can't."""
     import json
+
+    import anthropic
 
     client = anthropic.Anthropic()
     try:

@@ -28,6 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # The Dashboard's "try it with your own log" runs the Python analysis in the
+      # visitor's browser (website/upload.js), so publish src/ next to the site.
+      # Copied at deploy time so there's only ever one copy of the code in the repo.
+      - name: Copy the analysis code into the site
+        run: mkdir -p website/py && cp -r src website/py/src && rm -rf website/py/src/__pycache__
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website

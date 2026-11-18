@@ -39,6 +39,29 @@
       <p class="status-note" id="mode-note" hidden></p>
     </div>
 
+    <details class="card details upload" id="upload-card">
+      <summary>📂 Try it with your own log</summary>
+      <form id="upload-form" class="form" novalidate>
+        <p class="muted">Pick a CSV of your sets and see your own dashboard. The analysis runs entirely in your browser:
+          your file is never uploaded anywhere.</p>
+        <div class="fields">
+          <label>Workouts CSV <span class="muted">(required)</span><input type="file" name="workouts" accept=".csv,text/csv"></label>
+          <label>Daily check-ins CSV <span class="muted">(optional)</span><input type="file" name="daily" accept=".csv,text/csv"></label>
+          <label>Weights are in
+            <select name="unit"><option value="lbs">pounds (lbs)</option><option value="kg">kilograms (kg)</option></select>
+          </label>
+        </div>
+        <p class="note">Workouts need the columns <code>date</code>, <code>exercise</code>, <code>weight_lbs</code> (or
+          <code>weight</code>) and <code>reps</code>; <code>rpe</code> and <code>set_type</code> are optional. One row per set.
+          Download a sample: <button type="button" class="linklike" id="sample-workouts">workouts</button> ·
+          <button type="button" class="linklike" id="sample-daily">check-ins</button></p>
+        <div class="actions">
+          <button type="submit" class="button">Analyze my log</button>
+          <span class="status" id="upload-status" role="status"></span>
+        </div>
+      </form>
+    </details>
+
     <div id="loading" class="muted">Loading…</div>
     <p id="load-error" class="status error" hidden></p>
 
@@ -114,6 +137,18 @@
       </section>
 
       <section>
+        <h2>What drives your sessions</h2>
+        <div id="drivers-empty" class="card" hidden></div>
+        <div id="drivers-ready" hidden>
+          <p id="drivers-text"></p>
+          <div class="chart-card"><div id="chart-drivers" class="chart"></div></div>
+          <p class="note">How much better or worse than usual a session was, for each change. Dots are the best estimate, lines the
+            95% range. If a line crosses zero, the data can't tell yet. These are patterns in your logs, not proof of cause.
+            <a href="results.html">How reliable is this?</a></p>
+        </div>
+      </section>
+
+      <section>
         <div class="section-head">
           <h2>Weekly summary</h2>
           <label class="inline-select">Week <select id="week-select"></select></label>
@@ -133,5 +168,6 @@
   </footer>
 
   <script src="dashboard.js"></script>
+  <script src="upload.js"></script>
 </body>
 </html>

@@ -95,9 +95,9 @@
         <li><span class="badge done">Done</span><div><strong>Prediction model</strong><span class="desc">Predicts next-session e1RM from recent form and recovery. On 120 varied simulated lifters, linear regression's typical miss was 16% smaller than guessing "same as last time" (95% CI 13–19%). Needs about 30 real sessions before it runs on my logs.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Benchmark on hundreds of lifters</strong><span class="desc">Every model scored on simulated lifters it was never tuned on, against simple baselines, with 95% confidence intervals. <a href="results.html">Results</a>.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>Real-lifter check</strong><span class="desc">Tested on 30,000+ real powerlifters' public meet records (OpenPowerlifting). A flat trend line meant a PR at the next meet only 20% of the time vs. 46% otherwise. Trend lines barely beat "same as last meet" for forecasting. <a href="results.html">Results</a>.</span></div></li>
-        <li><span class="badge wip">Started</span><div><strong>What drives good sessions</strong><span class="desc">How sleep, soreness and time of day relate to performance.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>What drives good sessions</strong><span class="desc">Compares each session to the lifter's own normal, then estimates the effect of sleep, soreness and morning training together. On 200 simulated lifters with known effects it recovers sleep (+1.0% per hour) and morning training (−1.2%) almost exactly, and underestimates soreness by about a quarter. One person needs about 13 weeks of logs to see the sleep effect. <a href="results.html">Results</a>.</span></div></li>
         <li><span class="badge done">Done</span><div><strong>AI weekly summary</strong><span class="desc">Claude turns the week's numbers into a plain-English check-in, with a rule-based version when no API key is set. Suggestions, not medical advice.</span></div></li>
-        <li><span class="badge wip">Started</span><div><strong>Dashboard</strong><span class="desc">Live view of all of the above, with a simulated-data demo mode for features that need months of history.</span></div></li>
+        <li><span class="badge done">Done</span><div><strong>Dashboard</strong><span class="desc">Live view of all of the above, with a simulated-data demo. Anyone can <a href="dashboard.html">upload their own log</a>: the same Python analysis runs in their browser, so the file never leaves their computer.</span></div></li>
       </ol>
     </section>
 
@@ -105,7 +105,7 @@
       <h2>Built with</h2>
       <ul class="chips">
         <li>Python</li><li>pandas</li><li>NumPy</li><li>scikit-learn</li>
-        <li>Vega-Lite</li><li>SciPy</li><li>GitHub Pages</li><li>Claude API</li><li>OpenPowerlifting data</li>
+        <li>Vega-Lite</li><li>SciPy</li><li>GitHub Pages</li><li>Claude API</li><li>Pyodide</li><li>OpenPowerlifting data</li>
       </ul>
     </section>
   </main>

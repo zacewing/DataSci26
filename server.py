@@ -174,6 +174,19 @@ class Handler(SimpleHTTPRequestHandler):
                 "daily": sorted(daily, key=lambda r: r["date"], reverse=True)[:7],
                 "exercises": exercises,
             })
+        # The analysis code, for the Dashboard's "upload your own log" feature, which
+        # runs it in the browser. Online, the GitHub Pages workflow copies src/ to py/src/.
+        elif url.path.startswith("/py/src/") and url.path.endswith(".py"):
+            path = PROJECT_ROOT / "src" / url.path.rsplit("/", 1)[1]
+            if path.is_file():
+                body = path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/x-python; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_error(404)
         else:
             super().do_GET()  # a normal website file
 

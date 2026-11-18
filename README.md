@@ -10,7 +10,7 @@ strength over time, flags plateaus, predicts the next session, and writes a plai
 | Page | What's on it |
 |---|---|
 | Project | The question, the method, build progress |
-| Dashboard | Estimated 1RM trends, plateau flags, next-session forecast, weekly summary (simulated demo online, real logs locally) |
+| Dashboard | Estimated 1RM trends, plateau flags, next-session forecast, what drives your sessions, weekly summary. Simulated demo online, real logs locally, and anyone can upload their own CSV (analyzed in their browser) |
 | Results | How well the methods work, on hundreds of simulated lifters and 30,000+ real powerlifters |
 | Log | Log sets and daily check-ins, with a rest timer (works when running locally) |
 
@@ -26,6 +26,9 @@ Every score comes from lifters the methods were never tuned on, with 95% confide
 - **Real lifters (OpenPowerlifting, 30,556 test lifters):** when the trend line through the last 4 meets was flat,
   lifters set a PR at their next meet 20% of the time, versus 46% otherwise. Trend lines barely beat
   "same as last meet" for forecasting meets (0.3% better), an honest negative result.
+- **What drives good sessions (200 simulated lifters, known effects):** recovers the effect of sleep (+1.00% per hour, true +1.00)
+  and morning training (−1.21%, true −1.20); underestimates soreness (−0.30%, true −0.40). A single lifter needs about
+  13 weeks of logs to see the sleep effect clearly.
 
 ## How it works
 
@@ -33,6 +36,10 @@ Every score comes from lifters the methods were never tuned on, with 95% confide
 - **Plateau detection:** fit a straight line through the last 6 weeks of sessions; under 0.5% gain per week = plateau.
 - **Prediction:** linear regression and random forest on recent form and recovery, compared with "same as last session"
   using a time-based train/test split.
+- **What drives good sessions:** each session's e1RM vs. the median of the same lift's 3 sessions before and after,
+  regressed on sleep, soreness and morning training together.
+- **Upload your own log:** the Dashboard runs the same `src/` Python code in the visitor's browser with
+  [Pyodide](https://pyodide.org), so the online site needs no server and files never leave the visitor's computer.
 - **Weekly summary:** the Claude API turns the week's numbers into a short check-in (rule-based fallback without a key).
 
 ## Run it locally
@@ -50,6 +57,7 @@ Real logs live in `data/workouts.csv` and `data/daily.csv`. They are git-ignored
 ```bash
 .venv/bin/python -m src.benchmark         # simulated lifters, ~70 s
 .venv/bin/python -m src.openpowerlifting  # real lifters, ~8 min the first time
+.venv/bin/python -m src.drivers           # what drives good sessions, ~10 s
 .venv/bin/python -m src.export_site       # demo data for the online dashboard
 ```
 
@@ -67,6 +75,8 @@ All random seeds are fixed, so the numbers come out the same every run.
 | `src/simulate.py` | Simulated lifters with known "true" strength |
 | `src/benchmark.py` | Tune/test benchmark on hundreds of random simulated lifters |
 | `src/openpowerlifting.py` | Real-lifter check on OpenPowerlifting meet histories |
+| `src/drivers.py` | What drives good sessions (sleep, soreness, training time) |
+| `website/upload.js` | Runs the analysis in the browser for uploaded logs (Pyodide) |
 | `src/summary.py` | Weekly stats and the AI summary |
 | `src/dashboard_data.py`, `src/export_site.py` | Data for the Dashboard page |
 | `server.py` | Local web server: serves the site and saves Log entries |

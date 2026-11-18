@@ -15,3 +15,6 @@ __pycache__/
 
 # OpenPowerlifting bulk data (large, re-downloadable): python -m src.openpowerlifting
 data/opl/
+
+# Built at deploy time from src/ (see .github/workflows/pages.yml)
+website/py/

@@ -21,6 +21,7 @@ from src.analysis import (
     load_workouts,
     weekly_volume,
 )
+from src import drivers
 from src.model import MIN_SESSIONS, build_dataset, evaluate, feature_columns, fill_missing
 from src.plateau import current_status, plateau_periods, weekly_trend
 from src.summary import offline_summary, weekly_stats
@@ -98,7 +99,14 @@ def linear_forecaster(workouts, daily):
 
 def build(source="real", window=3):
     workouts, daily = load_source(source)
-    out = {"source": source, "source_label": SOURCES[source], "window": window, "lifts": []}
+    return build_from(workouts, daily, source, SOURCES[source], window)
+
+
+def build_from(workouts, daily, source="upload", label="Uploaded log", window=3):
+    """Everything the Dashboard shows, for any log. Used for the files on this
+    computer (build above) and for a CSV someone uploads on the website, where
+    this same code runs in their browser (see website/upload.js)."""
+    out = {"source": source, "source_label": label, "window": window, "lifts": []}
     if workouts.empty:
         return clean(out)
 
@@ -141,6 +149,9 @@ def build(source="real", window=3):
             "forecaster": linear_forecaster(workouts, daily),
             "linear_mae": scores.loc["linear", "MAE"],
         }
+
+    # What drives good sessions (sleep, soreness, morning training).
+    out["drivers"] = drivers.analyze(workouts, daily)
 
     # Recent recovery averages: starting points for the forecast sliders.
     recent = daily.tail(7)

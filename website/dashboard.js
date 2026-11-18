@@ -147,6 +147,31 @@ function setUpSourceSwitch() {
   }
 }
 
+// Called by upload.js once the visitor's own CSV has been analyzed in their browser.
+function showUploaded(data, fileName) {
+  state.mode = "upload";
+  state.source = "upload";
+  state.data = data;
+  state.lift = null;
+  $("source-switch").hidden = true;
+  const note = $("mode-note");
+  note.hidden = false;
+  note.replaceChildren("📂 Showing your file ");
+  const name = document.createElement("strong");
+  name.textContent = fileName;  // textContent, so a file name can't inject HTML
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "linklike";
+  back.textContent = "Back to the demo";
+  back.addEventListener("click", () => location.reload());
+  note.append(name, ". It stayed in your browser. ", back);
+  $("loading").hidden = true;
+  $("load-error").hidden = true;
+  $("upload-card").open = false;
+  render();
+  note.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 // ---------- Rendering ----------
 
 function render() {
@@ -170,6 +195,7 @@ function render() {
   renderLiftSwitch();
   renderLiftCharts();
   renderModel();
+  renderDrivers();
   renderWeeks();
 }
 
@@ -292,6 +318,45 @@ function renderLiftCharts() {
 }
 
 // ---------- Prediction model ----------
+
+function renderDrivers() {
+  const d = state.data.drivers;
+  const c = colors();
+  if (!d || !d.ready) {
+    $("drivers-ready").hidden = true;
+    $("drivers-empty").hidden = false;
+    $("drivers-empty").innerHTML =
+      `Needs at least <strong>${d ? d.need : 20}</strong> sessions with a daily check-in (sleep, soreness and training time) to say
+       anything reliable. You have <strong>${d ? d.have : 0}</strong> so far. Testing on simulated lifters showed it takes about
+       13 weeks of logging to see the effect of sleep clearly.`;
+    return;
+  }
+  $("drivers-empty").hidden = true;
+  $("drivers-ready").hidden = false;
+  const rows = d.effects.map((e) => ({ driver: e.label, est: e.estimate / 100, lo: e.low / 100, hi: e.high / 100, clear: e.clear ? "Clear" : "Not clear yet" }));
+  const x = { type: "quantitative", title: "Effect on the session (95% range)", axis: { format: "+.1%", grid: true } };
+  draw("#chart-drivers", {
+    height: 30 * rows.length + 40,
+    data: { values: rows },
+    encoding: { y: { field: "driver", type: "nominal", title: null, sort: null, axis: { labelLimit: 220 } } },
+    // Separate axes so the dot layer's hidden axis can't hide the visible one.
+    resolve: { axis: { x: "independent" } },
+    layer: [
+      { mark: { type: "rule", color: c.axis, strokeDash: [3, 3] }, encoding: { x: { datum: 0, ...x, axis: null } } },
+      { mark: { type: "rule", strokeWidth: 2, strokeCap: "round", color: c.blue }, encoding: { x: { field: "lo", ...x }, x2: { field: "hi" } } },
+      { mark: { type: "point", filled: true, size: 90, color: c.blue, opacity: 1 },
+        encoding: { x: { field: "est", ...x, axis: { labels: false, ticks: false, domain: false, grid: false, title: null } },
+          tooltip: [{ field: "driver", title: "Change" }, { field: "est", title: "Estimate", format: "+.2%" },
+            { field: "lo", title: "95% low", format: "+.2%" }, { field: "hi", title: "95% high", format: "+.2%" }, { field: "clear", title: "Verdict" }] } },
+    ],
+  });
+  const clear = d.effects.filter((e) => e.clear);
+  const say = (e) => `${e.label.toLowerCase()} goes with sessions <strong>${Math.abs(e.estimate).toFixed(1)}% ${e.estimate > 0 ? "better" : "worse"}</strong>`;
+  $("drivers-text").innerHTML = clear.length
+    ? `From ${d.have} sessions: ${clear.map(say).join("; ")}. ` +
+      (clear.length < d.effects.length ? "The other effects aren't clear yet." : "")
+    : `From ${d.have} sessions, none of these effects is clear yet. More logging will narrow the ranges.`;
+}
 
 function renderModel() {
   const m = state.data.model;

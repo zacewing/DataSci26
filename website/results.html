@@ -111,6 +111,35 @@
           equally. The p-value is from a Wilcoxon signed-rank test: same lifters, model vs. baseline.</p>
       </section>
 
+      <div id="drivers" hidden>
+        <section>
+          <h2>What drives good sessions</h2>
+          <p id="drivers-text"></p>
+          <div class="chart-card"><div id="chart-drivers" class="chart"></div></div>
+          <p class="note">Blue dot and line: what the method found, with its 95% interval. Gray diamond: the true effect built into
+            the simulator. A good method puts the dot on the diamond.</p>
+          <div class="table-wrap"><table id="table-drivers"></table></div>
+          <details class="card details">
+            <summary>Why is soreness underestimated?</summary>
+            <p>I tested four combinations of how soreness is logged and how session quality is measured. No single cause
+              explains it; three small mismatches each pull the estimate toward zero:</p>
+            <ul class="plain-list">
+              <li><strong>Comparing to nearby sessions</strong> absorbs a little of the effect (about 0.05 of the 0.40).</li>
+              <li><strong>Logging soreness at the end of the day, as a whole number,</strong> adds measurement error (about 0.04).</li>
+              <li><strong>One soreness number per day</strong> can't capture soreness rising during a session, so a second lift
+                is more fatigued than the log says (about 0.03).</li>
+            </ul>
+            <p>Takeaway: log soreness <em>before</em> training, and treat its estimated effect as a lower bound.</p>
+          </details>
+        </section>
+
+        <section>
+          <h2>How much logging does it take?</h2>
+          <p id="power-text"></p>
+          <div class="chart-card"><div id="chart-power" class="chart"></div></div>
+        </section>
+      </div>
+
       <div id="real" hidden>
         <section>
           <p class="eyebrow">Real lifters</p>
